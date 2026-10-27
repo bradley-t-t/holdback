@@ -2,6 +2,8 @@
 
 A Claude Code hook that stops Claude from changing things when you only asked a question. If your message is a question, a critique or a request for an explanation, Holdback blocks every tool call that would edit, write, commit, push or deploy. Claude can still read, search and run checks, so you get a real answer. When you want the work done, say so.
 
+It's for anyone who uses Claude Code and is tired of asking "why is this broken?" and getting a pile of edits back.
+
 ## What it does
 
 - Lets work through when you give an instruction ("fix the login bug"), ask for it ("can you fix it?"), say yes to something Claude offered, or run a slash command.
@@ -25,7 +27,7 @@ git clone https://github.com/bradley-t-t/holdback.git ~/holdback
 sh ~/holdback/install.sh
 ```
 
-This adds Holdback's hooks to `~/.claude/settings.json` and leaves your other hooks alone. Add `--claude-md` to also write the rule into `~/.claude/CLAUDE.md` for sessions that don't run hooks. To update, `git pull`.
+This adds Holdback's hooks to `~/.claude/settings.json` and leaves your other hooks alone. Add `--claude-md` to also write the rule into `~/.claude/CLAUDE.md` for places where Claude Code doesn't run hooks. To update, `git pull`.
 
 For Claude Projects cloud threads, add the marketplace `bradley-t-t/holdback` and the `holdback` plugin under **Project settings > Plugins**. For other cloud environments, run `cloud-setup.sh` from the environment's setup script.
 
@@ -50,3 +52,5 @@ python3 holdback.py selftest   # runs saved messages through the real judge
 ```
 
 To try one message, run `python3 holdback.py classify "<message>"`. To see what a tool call would change, run `python3 holdback.py changes Bash '{"command": "git push"}'`.
+
+Built with Python, using only the standard library.
