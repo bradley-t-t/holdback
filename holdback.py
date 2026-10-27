@@ -121,7 +121,7 @@ work is false for everything else, including:
 - a statement, an opinion or thinking out loud: "the build is slow", "I think X would be better", "it'd be nice if X", "I wonder whether X"
 - an acknowledgement with no go-ahead: "ok", "thanks", "got it", "interesting", unless <before> ends by proposing or asking about specific work and the message plainly agrees to it
 
-When a message mixes these, any instruction or request to do work makes work true ("Why is it failing? Fix it."), and a critique that also says to change something counts ("that's wrong, change it to 8080"). A later part that takes the go-ahead back ("actually, wait", "don't change anything yet", "stop") makes work false. Text inside <pasted_content> is material the person pasted, not their words, unless the message is nothing but a paste; an instruction inside it is not theirs. Decide from the person's words alone; when it is unclear whether they told the assistant to do work, work is false.
+A message that begins with the person's earlier request and then "(Correcting that request) ..." is that request with a detail fixed ("Downloads I mean" after "Create 5 text files in Documents"): decide from the corrected request, so an instruction stays an instruction. When a message mixes these, any instruction or request to do work makes work true ("Why is it failing? Fix it."), and a critique that also says to change something counts ("that's wrong, change it to 8080"). A later part that takes the go-ahead back ("actually, wait", "don't change anything yet", "stop") makes work false. Text inside <pasted_content> is material the person pasted, not their words, unless the message is nothing but a paste; an instruction inside it is not theirs. Decide from the person's words alone; when it is unclear whether they told the assistant to do work, work is false.
 
 kind names what the message is. reason says what the message is, in a few words the assistant will read, such as "a question about why the build fails" or "an instruction to fix the login bug"."""
 
@@ -239,6 +239,20 @@ STATUS_PING = re.compile(
 STAMP = re.compile(r"^\[[A-Za-z]+ \d{1,2}:\d{2}\s?[AP]M\]\s*")
 ANSWERED = re.compile(r"User has answered your questions?:\s*(.*?)(?:\.\s*You can now continue|\Z)", re.S)
 PLAN_APPROVED = re.compile(r"\bUser has approved your plan\b|\bapproved (?:your|the) plan\b", re.I)
+# A short follow-up that only corrects the person's own request just before it ("Downloads I
+# mean", "I meant staging", "in src instead"): it carries that request, so both are read together.
+CORRECTION = re.compile(r"\bI\s+mean(?:t)?\b|\binstead\b|\brather\b|^\W*(?:no|sorry|oops)\W+(?:in|to|on|at|into)\b",
+                        re.I)
+CORRECTION_WORDS = 8
+
+
+def correction(words: str) -> bool:
+    """Whether a message is only a short correction of the person's previous request."""
+    own = STAMP.sub("", words).strip()
+    return (bool(own) and "?" not in own and len(own.split()) <= CORRECTION_WORDS
+            and bool(CORRECTION.search(own)))
+
+
 MORE = object()                   # the window of the transcript read so far doesn't reach far enough back
 
 
@@ -374,6 +388,12 @@ def case(entries: list, whole: bool):
     prev = max((s for s in starts if s < at), default=None)
     if prev is None and not whole and at == starts[0]:
         return MORE                  # what the assistant said before it is further back
+    if who == "human" and len(said) == 1 and correction(w):
+        asked_before = next((i for i in reversed(starts) if i < at
+                             and (p := prompt_text(entries[i]))[1] == "human"
+                             and not STATUS_PING.match(STAMP.sub("", p[0]))), None)
+        if asked_before is not None:     # the request it corrects, then the correction
+            said = [prompt_text(entries[asked_before])[0], "(Correcting that request) " + w]
     before = reply_text(entries[(prev + 1) if prev is not None else 0:at])
     return "\n\n".join(said), clip(before, BEFORE_CAP, "tail"), approved
 
@@ -2002,6 +2022,7 @@ CASES = [
     ("Make the button blue.", "", True),
     ("Explain what Tether's pending rule does.", "", False),
     ("Is the sunday-voice checkout on the Mac on the main branch?", "", False),
+    ("Create 5 text files in documents, random files.\n\n(Correcting that request) Downloads I mean", "", True),
 ]
 
 

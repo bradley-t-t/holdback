@@ -55,6 +55,21 @@ class Turns(unittest.TestCase):
         words, _, _ = decided_by([human("Fix the build."), said("Fixed."), peer(body, name="Sunday")])
         self.assertEqual(words, "Is the checkout on main?")
 
+    def test_a_short_correction_carries_the_request_it_corrects(self):
+        words, before, _ = decided_by([human("Create 5 text files in documents, random files."),
+                                       said("Which folder did you want?"), human("Downloads I mean")])
+        self.assertEqual(words, "Create 5 text files in documents, random files.\n\n"
+                                "(Correcting that request) Downloads I mean")
+        self.assertEqual(before, "Which folder did you want?")
+        self.assertTrue(holdback.scan(words, before)["work"])
+
+    def test_a_critique_is_not_a_correction(self):
+        for text in ("you missed the README", "That's wrong, the port is 8080 not 3000.",
+                     "Why did you put it in Documents? I mean, really?"):
+            with self.subTest(text=text):
+                words, _, _ = decided_by([human("Fix the login bug."), said("Fixed."), human(text)])
+                self.assertEqual(words, text)
+
     def test_a_slash_command_is_the_persons(self):
         words, _, _ = decided_by([human("<command-message>ship is running</command-message>\n<command-name>/ship"
                                         "</command-name>\n<command-args>all</command-args>")])
@@ -125,6 +140,14 @@ class Verdicts(unittest.TestCase):
             self.assertTrue(holdback.decided(transcript(entries + [human("Fix it.")]), "s2")["work"])
         self.assertEqual(len(judge.calls), 2)
         self.assertEqual(judge.calls[1], ("Fix it.", "Because of X."))
+
+    def test_a_correction_after_a_request_lets_the_work_through(self):
+        path = transcript([human("Create 5 text files in documents, random files."),
+                           said("Creating them in ~/Documents."), human("Downloads I mean")])
+        judge = FakeJudge()
+        with mock.patch.object(holdback, "judge", judge):
+            self.assertTrue(holdback.decided(path, "s-correct")["work"])
+        self.assertIn("Create 5 text files", judge.calls[0][0])
 
     def test_a_slash_command_and_a_plan_need_no_judge(self):
         judge = FakeJudge()
