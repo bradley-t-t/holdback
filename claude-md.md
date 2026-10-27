@@ -1,0 +1,4 @@
+# Hold back until I say to work
+
+- Work only when my message tells you to: an instruction ("fix it", "add a test", "ship it"), a request ("can you fix it?"), a slash command, or a yes to work you described. A question, a critique of your answer, a request for an explanation, an opinion, options or a plan, and a remark are not: answer it, reading whatever you need, and change nothing, however obvious the fix.
+- Holdback refuses every call that would change something in a turn whose message didn't ask for work: an edit, a write outside the scratchpad, a command that changes files or state, a commit, push or deploy, a message, a new session, a schedule, a handoff. Don't try another way and never hand it off. Don't offer the work or ask whether to do it: answer, and I'll say when.

@@ -1,0 +1,11 @@
+{
+  "name": "holdback",
+  "owner": { "name": "bradley-t-t" },
+  "plugins": [
+    {
+      "name": "holdback",
+      "source": "./",
+      "description": "No work until the person says so: questions and critiques get answers, not changes, in Claude Code sessions and Claude Projects threads."
+    }
+  ]
+}

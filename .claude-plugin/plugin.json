@@ -1,0 +1,9 @@
+{
+  "name": "holdback",
+  "version": "1.0.0",
+  "description": "Holds an AI assistant back from work until the person tells it to: in a turn whose message is a question, a critique of an answer, a request for an explanation, an opinion or a plan, or a remark, every call that would change something is refused, so the assistant answers instead.",
+  "author": {
+    "name": "bradley-t-t"
+  },
+  "repository": "https://github.com/bradley-t-t/holdback"
+}
