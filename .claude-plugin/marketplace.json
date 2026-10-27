@@ -5,7 +5,7 @@
     {
       "name": "holdback",
       "source": "./",
-      "description": "No work until the person says so: questions and critiques get answers, not changes, in Claude Code sessions and Claude Projects threads."
+      "description": "Stops Claude from making changes when you only asked a question, in Claude Code and Claude Projects threads"
     }
   ]
 }
