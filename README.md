@@ -2,6 +2,8 @@
 
 A Claude Code hook. If you ask a question, Claude answers it instead of editing your code.
 
+![The same question put to Claude Code twice: without Holdback it answers by editing two files, with Holdback the edit is held and the question gets an answer](assets/holdback-demo.gif)
+
 "Fix the login bug", "can you fix it?", a yes to something Claude offered, or a slash command all let the work through. A question, a critique, a request for a review or a plan, or a passing comment don't. Those get a hold on anything that edits, writes, commits, pushes or deploys. Claude can still read files, search, run `git log` and `git diff`, tests, linters and fetch-only `curl`, and write to the scratchpad and `/tmp`, so the answer is a real one.
 
 I run it next to [Tether](https://github.com/bradley-t-t/tether), which checks Claude's replies before you see them.
