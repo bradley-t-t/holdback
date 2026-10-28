@@ -76,7 +76,7 @@ class Script(unittest.TestCase):
     def test_it_parses(self):
         p = subprocess.run(
             [PWSH, "-NoProfile", "-NonInteractive", "-Command",
-             "$null = [System.Management.Automation.Language.Parser]::ParseFile("
+             "$errors = $null; $null = [System.Management.Automation.Language.Parser]::ParseFile("
              "'%s', [ref]$null, [ref]$errors); if ($errors) { $errors; exit 1 }" % SCRIPT],
             capture_output=True, text=True, timeout=60)
         self.assertEqual(p.returncode, 0, p.stdout + p.stderr)
