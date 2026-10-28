@@ -1,20 +1,42 @@
 # Holdback
 
-A Claude Code hook that stops Claude from changing things when you only asked a question. If your message is a question, a critique or a request for an explanation, Holdback blocks every tool call that would edit, write, commit, push or deploy. Claude can still read, search and run checks, so you get a real answer. When you want the work done, say so.
+A Claude Code hook. If you ask a question, Claude answers it instead of editing your code.
 
-It's for anyone who uses Claude Code and is tired of asking "why is this broken?" and getting a pile of edits back.
+Questions, critiques and "explain this" get a hold on anything that edits, writes, commits, pushes or deploys. Reading, searching and running checks still work, so the answer is a real one. When you want the change made, say so.
 
 <details>
 <summary>What it does</summary>
 
-- Lets work through when you give an instruction ("fix the login bug"), ask for it ("can you fix it?"), say yes to something Claude offered, or run a slash command.
-- Blocks changes when you ask a question, point out a mistake, ask for a review or a plan, or just make a remark.
-- Still allows reading files, searching, `git log` and `git diff`, tests, linters, fetch-only `curl`, and writing to the scratchpad and `/tmp`.
-- Reads shell commands the way the shell does (pipes, `&&`, heredocs, `bash -c`, `ssh host '...'`), and treats a command it doesn't know as a change.
-- A second Claude model (Opus by default, via `claude -p`) classifies each message once. If it can't be reached, a simple word check decides.
+- Lets the work through when you give an instruction ("fix the login bug"), ask for it ("can you fix it?"), say yes to something Claude offered, or run a slash command.
+- Holds changes when you ask a question, point out a mistake, ask for a review or a plan, or just make a comment.
+- Always allowed: reading files, searching, `git log` and `git diff`, tests, linters, fetch-only `curl`, and writing to the scratchpad and `/tmp`.
+- Reads shell commands the way the shell runs them. A command it doesn't know counts as a change.
 - Works as a plugin in Claude Projects cloud threads too.
 
-I run it alongside Tether, a separate hook that checks Claude's replies before you see them.
+I run it next to Tether, a separate hook that checks Claude's replies before you see them.
+
+</details>
+
+<details>
+<summary>How it works</summary>
+
+One script, `holdback.py`, on two hooks.
+
+- **`UserPromptSubmit`** starts judging your message in the background. By Claude's first tool call the answer is usually ready.
+- **`PreToolUse`** asks two things: did you ask for work, and does this call change anything. Hold only when it's "no" and "yes".
+
+**Judging the message.** A second model (`claude -p`, Opus by default) gets your message, capped at 6,000 characters, plus the last 1,500 characters of Claude's previous reply. It returns one kind (instruction, request, go-ahead, command, question, critique, remark and a few more) against a JSON schema. The previous reply is there so "yes, do it" counts after an offer and nowhere else. Each message is judged once and cached, last 40 per session. If the judge is down, a regex scan for instructions, polite requests and go-aheads decides.
+
+**Which message counts.** Your message decides its own turn. Turns started by CI, background tasks or other sessions go by your last real request. So does a bare status check. A subagent goes by the turn that launched it. Headless runs are skipped unless `HOLDBACK=1`.
+
+**What counts as a change.** `changes()` decides per call:
+
+- `Edit` and `Write`: a change, unless the path is the scratchpad or `/tmp`.
+- Bash: parsed with `shlex` through pipes, `&&`, heredocs, `bash -c` and `ssh host '...'`. Known read-only commands pass. Local `.py`, `.sh` and `.js` scripts get opened and judged by what they run. Anything unrecognized is a change. A wrong guess toward "change" costs a retry. A wrong guess the other way costs your code.
+- SQL: passes only if every statement is a read, after comments and strings are stripped.
+- Other MCP tools: split on `_` and `-` and judged by the verb. `get`, `list`, `search` pass. `create`, `send`, `deploy` don't. No verb means change.
+
+Every hold starts with `Holdback: held` and tells Claude not to hand the task off. That marker is how Tether and claude-handoff know to stay out of it.
 
 </details>
 
