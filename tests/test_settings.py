@@ -34,7 +34,9 @@ class Settings(unittest.TestCase):
         return json.loads(self.path.read_text(encoding="utf-8"))
 
     def commands(self, event):
-        return [h["command"] for g in self.read()["hooks"][event] for h in g["hooks"]]
+        """Every hook command for this event, as one line each - the Windows hook keeps
+        the module in "args" rather than in the command."""
+        return [settings.command_text(h) for g in self.read()["hooks"][event] for h in g["hooks"]]
 
     def test_it_goes_in_beside_tether_and_the_guard(self):
         settings.install(self.path)

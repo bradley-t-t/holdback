@@ -8,7 +8,8 @@ import time
 import unittest
 from unittest import mock
 
-from helpers import STATE, reset_state  # noqa: F401  (puts src on the path)
+import helpers
+from helpers import reset_state
 from holdback import config, package, update
 
 
@@ -90,17 +91,30 @@ class Run(unittest.TestCase):
         cmd.assert_not_called()
         self.assertNotIn("checked_at", update.last())   # a look never holds an update back
 
+    @helpers.posix_only
     def test_a_newer_version_is_installed(self):
         ran = []
         with mock.patch.object(update, "latest_version", return_value=("999.0.0", "")), \
                 mock.patch.object(package, "upgrade_command", return_value=["pipx", "install"]), \
                 mock.patch.object(package, "checkout_held_back", return_value=""), \
-                mock.patch.object(update, "_run", side_effect=lambda cmd, timeout: ran.append(cmd)), \
-                mock.patch.object(update.system, "windows", return_value=False):
+                mock.patch.object(update, "_run", side_effect=lambda cmd, timeout: ran.append(cmd)):
             result = update.update()
         self.assertTrue(result.upgraded)
         self.assertEqual(ran, [["pipx", "install"]])
         self.assertTrue(update.last()["outcome"].startswith("updated"))
+
+    def test_on_windows_the_reinstall_waits_for_this_process_to_exit(self):
+        after = []
+        with mock.patch.object(update, "latest_version", return_value=("999.0.0", "")), \
+                mock.patch.object(package, "upgrade_command", return_value=["pipx", "install"]), \
+                mock.patch.object(package, "installer", return_value="pipx"), \
+                mock.patch.object(package, "checkout_held_back", return_value=""), \
+                mock.patch.object(update.system, "run_after_exit", side_effect=after.append), \
+                mock.patch.object(update.system, "windows", side_effect=lambda: True):
+            result = update.update()
+        self.assertTrue(result.upgraded)
+        self.assertIn("once Holdback exits", result.outcome)
+        self.assertEqual(after[0][0], ["pipx", "install"])
 
     def test_a_checkout_with_work_in_it_is_left_alone(self):
         ran = []
