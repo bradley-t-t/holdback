@@ -1,0 +1,24 @@
+# The suite on all three systems. Windows is the one that matters here: the tests
+# for how Holdback asks whether a process is alive and how it locks a file can only
+# run on Windows, and the install.ps1 tests want a real PowerShell.
+name: test
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+jobs:
+  test:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+        python: ["3.9", "3.13"]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python }}
+      - name: Tests
+        shell: bash
+        run: python -m unittest discover -s tests -t tests -v
