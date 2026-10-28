@@ -2,6 +2,8 @@
 
 A Claude Code hook. If you ask a question, Claude answers it instead of editing your code.
 
+![The same question put to Claude Code twice: without Holdback it answers by editing two files, with Holdback the edit is held and the question gets an answer](assets/holdback-demo.gif)
+
 "Fix the login bug", "can you fix it?", a yes to something Claude offered, or a slash command all let the work through. A question, a critique, a request for a review or a plan, or a passing comment don't. Those get a hold on anything that edits, writes, commits, pushes or deploys. Claude can still read files, search, run `git log` and `git diff`, tests, linters and fetch-only `curl`, and write to the scratchpad and `/tmp`, so the answer is a real one.
 
 I run it next to [Tether](https://github.com/bradley-t-t/tether), which checks Claude's replies before you see them.
@@ -28,7 +30,7 @@ Turns you didn't start (CI, background tasks, other sessions) go by your last re
 - SQL passes only if every statement is a read, once comments and strings are stripped.
 - Other MCP tools are judged by the verb in their name. `get`, `list` and `search` pass, `create`, `send` and `deploy` don't, and no verb means change.
 
-Every hold starts with `Holdback: held` and tells Claude not to hand the task off. Tether and claude-handoff look for that marker and stay out of it.
+Every hold starts with `Holdback: held` and tells Claude not to hand the task off. Tether and [Baton](https://github.com/bradley-t-t/baton) look for that marker and stay out of it.
 
 <details>
 <summary>Environment variables</summary>
