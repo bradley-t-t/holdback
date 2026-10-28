@@ -30,7 +30,7 @@ Turns you didn't start (CI, background tasks, other sessions) go by your last re
 - SQL passes only if every statement is a read, once comments and strings are stripped.
 - Other MCP tools are judged by the verb in their name. `get`, `list` and `search` pass, `create`, `send` and `deploy` don't, and no verb means change.
 
-Every hold starts with `Holdback: held` and tells Claude not to hand the task off. Tether and claude-handoff look for that marker and stay out of it.
+Every hold starts with `Holdback: held` and tells Claude not to hand the task off. Tether and [Baton](https://github.com/bradley-t-t/baton) look for that marker and stay out of it.
 
 <details>
 <summary>Environment variables</summary>
