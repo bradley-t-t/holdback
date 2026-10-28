@@ -3,14 +3,14 @@ them. Nothing here reaches the judge.
 
 Run:  python3 -m unittest discover -s tests -v
 """
-import json, os, unittest
+import os, unittest
 from unittest import mock
 
 from helpers import (holdback, transcript, human, queued, event, peer, said, called, result, FakeJudge,
                      reset_state)
 
 
-def decided_by(entries, **kw):
+def decided_by(entries):
     """(words, before, approved) for the turn that ends the transcript."""
     entries_, whole = holdback.read_window(transcript(entries), None)
     return holdback.case(entries_, whole)

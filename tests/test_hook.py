@@ -5,7 +5,7 @@ Run:  python3 -m unittest discover -s tests -v
 """
 import json, os, stat, subprocess, sys, tempfile, time, unittest
 
-from helpers import HOLDBACK_PY, STATE, holdback, transcript, human, said, called, result, reset_state
+from helpers import HOLDBACK_PY, STATE, holdback, transcript, human, said, called, reset_state
 
 SP = "/private/tmp/claude-501/-Users-someone/0000/scratchpad"
 FAKE = tempfile.mkdtemp(prefix="holdback-fake-claude-")
