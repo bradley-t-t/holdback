@@ -43,13 +43,13 @@ Every hold starts with `Holdback: held` and tells Claude not to hand the task of
 
 ## The appeal
 
-Holding everything it can't read is the right default and the wrong answer for `ollama list` or `systeminfo` — a command you only asked a question about, held for nothing. So a command Holdback couldn't read gets one appeal: a second judge is shown the command and the scratchpad directories, nothing else, and asked the one factual question of whether running it would change anything. If it only reads, the call goes through.
+Holding everything it can't read is the right default and the wrong answer for `ollama list` or `systeminfo`. Commands you only asked a question about, held for nothing. So a command Holdback couldn't read gets one appeal: a second judge is shown the command and the scratchpad directories, nothing else, and asked the one factual question of whether running it would change anything. If it only reads, the call goes through.
 
-The appeal can only ever widen what counts as reading. It never sees a change Holdback did read — `git push`, `rm -rf build`, `npm install`, `sed -i`, a redirect to a real file are held with no judge asked — and a command naming anything that changes things is never appealed, whatever else is in it. It fails closed, so an unreachable, slow or unsure judge leaves the hold in place. And it never sees your message, so it can't decide you probably wanted this. Every appeal is logged with its verdict and whether it was let through. `holdback setup --no-appeal` turns it off.
+The appeal can only ever widen what counts as reading. It never sees a change Holdback did read. `git push`, `rm -rf build`, `npm install`, `sed -i` and a redirect to a real file are held with no judge asked. A command naming anything that changes things is never appealed, whatever else is in it. It fails closed, so an unreachable, slow or unsure judge leaves the hold in place. And it never sees your message, so it can't decide you probably wanted this. Every appeal is logged with its verdict and whether it was let through. `holdback setup --no-appeal` turns it off.
 
 ## Keeping itself current
 
-As each hook finishes, at most once a minute, Holdback starts a background check of the version on `main` — a conditional request, so an unchanged `main` costs GitHub nothing. If `main` is newer it reinstalls with whatever installed it, pipx or uv, or `git pull` for a copy running from a clean checkout. Hooks never wait on it and the next one already runs the new version; on Windows the reinstall starts a few seconds after Holdback exits, since Windows won't replace a running program. A failed check waits five minutes, doubling up to an hour.
+As each hook finishes, at most once a minute, Holdback starts a background check of the version on `main`. It's a conditional request, so an unchanged `main` costs GitHub nothing. If `main` is newer it reinstalls with whatever installed it, pipx or uv, or `git pull` for a copy running from a clean checkout. Hooks never wait on it and the next one already runs the new version; on Windows the reinstall starts a few seconds after Holdback exits, since Windows won't replace a running program. A failed check waits five minutes, doubling up to an hour.
 
 `holdback update` does it now, `holdback update --check` only looks, and `holdback doctor` shows the last check.
 
@@ -129,4 +129,4 @@ python3 -m unittest discover -s tests -v
 holdback selftest   # saved messages and commands through the real judges
 ```
 
-Built with Python, using only the standard library.
+Built with Python, using only the standard library. MIT licensed, see [LICENSE](LICENSE).
