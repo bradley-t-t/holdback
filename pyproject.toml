@@ -7,7 +7,7 @@ build-backend = "setuptools.build_meta"
 # the import name are both holdback.
 name = "claude-holdback"
 dynamic = ["version"]
-description = "Stops Claude from changing things when you only asked a question"
+description = "Stops Claude from making changes when you only asked a question"
 readme = "README.md"
 requires-python = ">=3.9"
 license = { text = "MIT" }
