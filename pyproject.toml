@@ -1,0 +1,49 @@
+[build-system]
+requires = ["setuptools>=61"]
+build-backend = "setuptools.build_meta"
+
+[project]
+# "holdback" is taken on PyPI, so the distribution is claude-holdback. The command and
+# the import name are both holdback.
+name = "claude-holdback"
+dynamic = ["version"]
+description = "Stops Claude from changing things when you only asked a question"
+readme = "README.md"
+requires-python = ">=3.9"
+license = { text = "MIT" }
+authors = [{ name = "Trenton Taylor" }]
+keywords = ["claude", "claude-code", "hooks", "guardrail", "permissions"]
+classifiers = [
+  "Environment :: Console",
+  "Intended Audience :: Developers",
+  "License :: OSI Approved :: MIT License",
+  "Operating System :: MacOS",
+  "Operating System :: Microsoft :: Windows",
+  "Operating System :: POSIX :: Linux",
+  "Programming Language :: Python :: 3",
+  "Programming Language :: Python :: 3 :: Only",
+  "Programming Language :: Python :: 3.9",
+  "Programming Language :: Python :: 3.10",
+  "Programming Language :: Python :: 3.11",
+  "Programming Language :: Python :: 3.12",
+  "Programming Language :: Python :: 3.13",
+]
+dependencies = []
+
+[project.urls]
+Homepage = "https://github.com/bradley-t-t/holdback"
+Source = "https://github.com/bradley-t-t/holdback"
+Issues = "https://github.com/bradley-t-t/holdback/issues"
+
+[project.scripts]
+holdback = "holdback.cli:main"
+
+[tool.setuptools.dynamic]
+version = { attr = "holdback.__version__" }
+
+[tool.setuptools.packages.find]
+where = ["src"]
+include = ["holdback*"]
+
+[tool.setuptools.package-data]
+holdback = ["rule.md"]

@@ -1,19 +1,23 @@
-"""Which of the person's messages decides a turn, read from transcripts as Claude Code writes
-them. Nothing here reaches the judge.
+"""Which of the person's messages decides a turn, read from transcripts as Claude Code
+writes them, and the verdict that is kept for it. Nothing here reaches a real judge.
 
 Run:  python3 -m unittest discover -s tests -v
 """
-import json, os, unittest
+import os
+import time
+import unittest
 from unittest import mock
 
-from helpers import (holdback, transcript, human, queued, event, peer, said, called, result, FakeJudge,
-                     reset_state)
+from helpers import (FakeJudge, called, event, human, peer, queued, reset_state, result, said,
+                     transcript)
+from holdback import judge as judges
+from holdback import state, transcript as tr, turn
 
 
-def decided_by(entries, **kw):
+def decided_by(entries):
     """(words, before, approved) for the turn that ends the transcript."""
-    entries_, whole = holdback.read_window(transcript(entries), None)
-    return holdback.case(entries_, whole)
+    read, whole = tr.read_window(transcript(entries), None)
+    return tr.case(read, whole)
 
 
 class Turns(unittest.TestCase):
@@ -61,7 +65,7 @@ class Turns(unittest.TestCase):
         self.assertEqual(words, "Create 5 text files in documents, random files.\n\n"
                                 "(Correcting that request) Downloads I mean")
         self.assertEqual(before, "Which folder did you want?")
-        self.assertTrue(holdback.scan(words, before)["work"])
+        self.assertTrue(judges.scan(words, before).work)
 
     def test_a_critique_is_not_a_correction(self):
         for text in ("you missed the README", "That's wrong, the port is 8080 not 3000.",
@@ -92,32 +96,32 @@ class Turns(unittest.TestCase):
     def test_a_short_window_reaches_back(self):
         filler = [said("x" * 2000) for _ in range(400)]
         path = transcript([human("Fix it."), *filler, event("<task-notification>x</task-notification>")])
-        entries, whole = holdback.read_window(path, 512 * 1024)
+        entries, whole = tr.read_window(path, 512 * 1024)
         self.assertFalse(whole)
-        self.assertIs(holdback.case(entries, whole), holdback.MORE)
+        self.assertIs(tr.case(entries, whole), tr.MORE)
         reset_state()
         judge = FakeJudge()
-        with mock.patch.object(holdback, "judge", judge):
-            self.assertTrue(holdback.decided(path, "s-window")["work"])
+        with mock.patch.object(judges, "judge", judge):
+            self.assertTrue(turn.decided(path, "s-window").work)
         self.assertEqual(judge.calls[0][0], "Fix it.")
 
 
 class Projects(unittest.TestCase):
     def wake(self, text, frm="human"):
-        return {"type": "user", "message": {"content": f'<wake reason="mention"><project id="p"><message '
-                                                       f'trigger="true" from="{frm}" id="m">{text}</message>'
-                                                       f'</project></wake>'}}
+        return {"type": "user", "message": {"content": '<wake reason="mention"><project id="p"><message '
+                                                       'trigger="true" from="%s" id="m">%s</message>'
+                                                       "</project></wake>" % (frm, text)}}
 
     def test_the_persons_words_in_a_wake(self):
         path = transcript([self.wake("Is it live &amp; tested?")])
-        self.assertTrue(holdback.project_session(path))
-        entries, whole = holdback.read_window(path)
-        self.assertEqual(holdback.project_case(entries, whole)[0], "Is it live & tested?")
+        self.assertTrue(tr.project_session(path))
+        entries, whole = tr.read_window(path)
+        self.assertEqual(tr.project_case(entries, whole)[0], "Is it live & tested?")
 
     def test_a_thread_the_coordinator_started_has_none(self):
         path = transcript([self.wake("Do the migration.", frm="agent")])
-        entries, whole = holdback.read_window(path)
-        self.assertIsNone(holdback.project_case(entries, whole))
+        entries, whole = tr.read_window(path)
+        self.assertIsNone(tr.project_case(entries, whole))
 
 
 class Verdicts(unittest.TestCase):
@@ -127,17 +131,17 @@ class Verdicts(unittest.TestCase):
     def test_one_judge_call_per_message(self):
         path = transcript([human("Why is it slow?")])
         judge = FakeJudge()
-        with mock.patch.object(holdback, "judge", judge):
+        with mock.patch.object(judges, "judge", judge):
             for _ in range(3):
-                self.assertFalse(holdback.decided(path, "s1")["work"])
+                self.assertFalse(turn.decided(path, "s1").work)
         self.assertEqual(len(judge.calls), 1)
 
     def test_a_new_message_gets_its_own_verdict(self):
         entries = [human("Why is it slow?"), said("Because of X.")]
         judge = FakeJudge()
-        with mock.patch.object(holdback, "judge", judge):
-            self.assertFalse(holdback.decided(transcript(entries), "s2")["work"])
-            self.assertTrue(holdback.decided(transcript(entries + [human("Fix it.")]), "s2")["work"])
+        with mock.patch.object(judges, "judge", judge):
+            self.assertFalse(turn.decided(transcript(entries), "s2").work)
+            self.assertTrue(turn.decided(transcript(entries + [human("Fix it.")]), "s2").work)
         self.assertEqual(len(judge.calls), 2)
         self.assertEqual(judge.calls[1], ("Fix it.", "Because of X."))
 
@@ -145,24 +149,25 @@ class Verdicts(unittest.TestCase):
         path = transcript([human("Create 5 text files in documents, random files."),
                            said("Creating them in ~/Documents."), human("Downloads I mean")])
         judge = FakeJudge()
-        with mock.patch.object(holdback, "judge", judge):
-            self.assertTrue(holdback.decided(path, "s-correct")["work"])
+        with mock.patch.object(judges, "judge", judge):
+            self.assertTrue(turn.decided(path, "s-correct").work)
         self.assertIn("Create 5 text files", judge.calls[0][0])
 
     def test_a_slash_command_and_a_plan_need_no_judge(self):
         judge = FakeJudge()
-        with mock.patch.object(holdback, "judge", judge):
-            self.assertTrue(holdback.decided(transcript([human("/commit")]), "s3")["work"])
-            self.assertTrue(holdback.decided(transcript([
-                human("Plan it."), called("ExitPlanMode", {}, tid="p"), result("p", "User has approved your plan.")]),
-                "s3")["work"])
+        with mock.patch.object(judges, "judge", judge):
+            self.assertTrue(turn.decided(transcript([human("/commit")]), "s3").work)
+            self.assertTrue(turn.decided(transcript([
+                human("Plan it."), called("ExitPlanMode", {}, tid="p"),
+                result("p", "User has approved your plan.")]), "s3").work)
         self.assertEqual(judge.calls, [])
 
     def test_a_caller_can_pass_the_persons_words(self):
         path = transcript([human("Answer in two plain sentences. Is it on main?\n\n(Asked by voice ...)")])
         judge = FakeJudge()
-        with mock.patch.object(holdback, "judge", judge), mock.patch.dict(os.environ, {"TETHER_QUESTION": "Is it on main?"}):
-            holdback.decided(path, "s4")
+        with mock.patch.object(judges, "judge", judge), \
+                mock.patch.dict(os.environ, {"TETHER_QUESTION": "Is it on main?"}):
+            turn.decided(path, "s4")
         self.assertEqual(judge.calls[0][0], "Is it on main?")
 
     def test_a_subagent_goes_by_the_turn_that_launched_it(self):
@@ -171,47 +176,25 @@ class Verdicts(unittest.TestCase):
             result("a1", "Async agent launched successfully.\nagentId: a97f467ca01568c81"), said("Started."),
             human("Why is the sky blue?")])
         judge = FakeJudge(work_words=("write",))
-        with mock.patch.object(holdback, "judge", judge):
-            self.assertFalse(holdback.decided(path, "s5")["work"])
-            self.assertTrue(holdback.decided(path, "s5", "a97f467ca01568c81")["work"])
-            self.assertFalse(holdback.decided(path, "s5", "not-launched-yet")["work"])
-
-    def test_the_word_scan_decides_when_the_judge_cannot(self):
-        with mock.patch.object(holdback, "claude_bin", return_value="/nonexistent/claude"):
-            v = holdback.judge("Why is the build failing?")
-            self.assertFalse(v["work"])
-            self.assertIn("error", v)
-            self.assertTrue(holdback.judge("Fix it, test it, then release it.")["work"])
+        with mock.patch.object(judges, "judge", judge):
+            self.assertFalse(turn.decided(path, "s5").work)
+            self.assertTrue(turn.decided(path, "s5", "a97f467ca01568c81").work)
+            self.assertFalse(turn.decided(path, "s5", "not-launched-yet").work)
 
     def test_a_verdict_another_process_is_working_out_is_waited_for(self):
         path = transcript([human("Why?")])
-        key_judge = FakeJudge()
-        with mock.patch.object(holdback, "judge", key_judge):
-            v = holdback.decided(path, "s6")
-        state = holdback.load("s6")
-        key = next(iter(state["verdicts"]))
-        state["verdicts"] = {}
-        state["pending"] = {key: [__import__("time").time(), 1]}       # pid 1 is always alive
-        holdback.save("s6", state)
-        with mock.patch.object(holdback, "WAIT", 0.5), mock.patch.object(holdback, "judge", key_judge):
-            v = holdback.decided(path, "s6")
-        self.assertEqual(len(key_judge.calls), 1)                      # it waited, then fell back to the scan
-        self.assertEqual(v["by"], "scan")
-
-
-class Scan(unittest.TestCase):
-    def test_messages(self):
-        for message, before, want in [
-            ("Fix it, test it, then release it.", "", True), ("Can you fix the login bug?", "", True),
-            ("That's wrong, change it to 8080.", "", True), ("yes", "Want me to make that change?", True),
-            ("/ship", "", True), ("Why is the build failing?", "", False),
-            ("Explain again concisely.", "", False), ("Propose a plan to fix the issues.", "", False),
-            ("That's wrong, the port is 8080 not 3000.", "", False), ("ok thanks", "The build is fixed.", False),
-            ("Fix the bug. Actually wait, don't change anything yet.", "", False),
-            ("It isn't supposed to say it left work undone.", "", False),
-        ]:
-            with self.subTest(message=message):
-                self.assertEqual(holdback.scan(message, before)["work"], want)
+        judge = FakeJudge()
+        with mock.patch.object(judges, "judge", judge):
+            turn.decided(path, "s6")
+        kept = state.load("s6")
+        key = next(iter(kept["verdicts"]))
+        kept["verdicts"] = {}
+        kept["pending"] = {key: [time.time(), 1]}        # pid 1 is always alive
+        state.save("s6", kept)
+        with mock.patch.object(state, "WAIT", 0.5), mock.patch.object(judges, "judge", judge):
+            v = turn.decided(path, "s6")
+        self.assertEqual(len(judge.calls), 1)            # it waited, then fell back to the scan
+        self.assertEqual(v.by, "scan")
 
 
 if __name__ == "__main__":

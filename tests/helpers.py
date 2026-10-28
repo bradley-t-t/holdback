@@ -1,16 +1,30 @@
-"""Shared by the tests: Holdback's state in a temporary folder, transcripts written as Claude
-Code writes them, and a judge that never leaves the machine."""
-import json, os, sys, tempfile, uuid
+"""Shared by the tests: Holdback's state in a temporary folder, transcripts written as
+Claude Code writes them, and a judge that never leaves the machine."""
 
-HERE = os.path.dirname(os.path.abspath(__file__))
-ROOT = os.path.dirname(HERE)
+import json
+import os
+import sys
+import tempfile
+import unittest
+import uuid
+from pathlib import Path
+
+ROOT = Path(__file__).resolve().parent.parent
+sys.path.insert(0, str(ROOT / "src"))
+
 STATE = tempfile.mkdtemp(prefix="holdback-test-")
 os.environ["HOLDBACK_STATE"] = STATE
-os.environ.pop("HOLDBACK_ALLOW_PATHS", None)
-sys.path.insert(0, ROOT)
-import holdback  # noqa: E402
+os.environ["HOLDBACK_CONFIG"] = os.path.join(STATE, "config.json")
+os.environ["HOLDBACK_UPDATE"] = "0"          # the tests never reach GitHub
+for var in ("HOLDBACK_ALLOW_PATHS", "HOLDBACK_APPEAL", "HOLDBACK_MODEL"):
+    os.environ.pop(var, None)
 
-HOLDBACK_PY = os.path.join(ROOT, "holdback.py")
+from holdback.models import Verdict  # noqa: E402
+
+HOLDBACK_PY = str(ROOT / "holdback.py")
+
+posix_only = unittest.skipIf(os.name == "nt", "POSIX only")
+windows_only = unittest.skipUnless(os.name == "nt", "Windows only")
 
 
 def transcript(entries, folder=None) -> str:
@@ -31,13 +45,14 @@ def queued(text):
 
 
 def event(text, kind="task-notification"):
-    return {"type": "user", "isMeta": True, "origin": {"kind": kind}, "message": {"role": "user", "content": text}}
+    return {"type": "user", "isMeta": True, "origin": {"kind": kind},
+            "message": {"role": "user", "content": text}}
 
 
 def peer(body, name="A session"):
     return {"type": "user", "isMeta": True, "origin": {"kind": "peer", "from": "local_x"},
             "message": {"role": "user", "content": "Another Claude session sent a message:\n<cross-session-message "
-                        f'from="local_x" name="{name}">\n{body}\n</cross-session-message>'}}
+                        'from="local_x" name="%s">\n%s\n</cross-session-message>' % (name, body)}}
 
 
 def said(text):
@@ -55,7 +70,8 @@ def result(tid, text, error=False):
 
 
 class FakeJudge:
-    """Stands in for holdback.judge: work when the message says so, and counts its calls."""
+    """Stands in for holdback.judge.judge: work when the message says so, and counts its
+    calls."""
 
     def __init__(self, work_words=("fix", "make", "add", "create", "change it", "do it", "yes")):
         self.calls, self.work_words = [], work_words
@@ -63,8 +79,9 @@ class FakeJudge:
     def __call__(self, message, before=""):
         self.calls.append((message, before))
         work = any(w in message.lower() for w in self.work_words) and "?" not in message
-        return {"work": work, "kind": "instruction" if work else "question",
-                "reason": "an instruction" if work else "a question about the code", "by": "judge", "ms": 1}
+        return Verdict(work=work, kind="instruction" if work else "question",
+                       reason="an instruction" if work else "a question about the code",
+                       by="judge", ms=1)
 
 
 def reset_state():
