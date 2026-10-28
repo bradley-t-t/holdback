@@ -75,6 +75,18 @@ class AsWindows(unittest.TestCase):
         self.assertIsNone(bash_change(r"git.exe status", r"C:\p"))
 
 
+class Locking(unittest.TestCase):
+    def test_only_one_process_holds_it(self):
+        from holdback import config
+        lock = config.state_dir() / "test.lock"
+        with system.exclusive_lock(lock):
+            with self.assertRaises(system.Locked):
+                with system.exclusive_lock(lock):
+                    pass
+        with system.exclusive_lock(lock):
+            pass                     # free again
+
+
 class OnWindows(unittest.TestCase):
     """Only on a real Windows machine: the parts that call into the OS."""
 
@@ -84,12 +96,9 @@ class OnWindows(unittest.TestCase):
         self.assertFalse(system.alive(0x7FFFFFFF))
 
     @helpers.windows_only
-    def test_the_lock_is_exclusive(self):
-        from holdback import config
-        with system.exclusive_lock(config.state_dir() / "test.lock"):
-            with self.assertRaises(system.Locked):
-                with system.exclusive_lock(config.state_dir() / "test.lock"):
-                    pass
+    def test_the_lock_is_the_windows_one(self):
+        self.assertIsNone(system._fcntl)
+        self.assertIsNotNone(system._msvcrt)
 
 
 if __name__ == "__main__":

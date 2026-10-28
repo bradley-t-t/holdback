@@ -142,6 +142,18 @@ class Locked(Exception):
     """Another process holds the lock."""
 
 
+# Whichever of the two file locks this Python has. Asked for by name rather than by
+# windows(), so a test standing in for Windows still locks with what is really here.
+try:
+    import fcntl as _fcntl
+except ImportError:  # Windows
+    _fcntl = None
+try:
+    import msvcrt as _msvcrt
+except ImportError:  # everywhere else
+    _msvcrt = None
+
+
 @contextmanager
 def exclusive_lock(path):
     """Hold path as a lock for the block, or raise Locked when someone else has it."""
@@ -149,33 +161,24 @@ def exclusive_lock(path):
     path.parent.mkdir(parents=True, exist_ok=True)
     f = open(path, "a+")
     try:
-        if windows():
-            import msvcrt
+        try:
+            if _fcntl is not None:
+                _fcntl.flock(f.fileno(), _fcntl.LOCK_EX | _fcntl.LOCK_NB)
+            else:
+                _msvcrt.locking(f.fileno(), _msvcrt.LK_NBLCK, 1)
+        except OSError:
+            raise Locked(str(path)) from None
+        try:
+            yield f
+        finally:
             try:
-                msvcrt.locking(f.fileno(), msvcrt.LK_NBLCK, 1)
-            except OSError:
-                raise Locked(str(path)) from None
-            try:
-                yield f
-            finally:
-                try:
+                if _fcntl is not None:
+                    _fcntl.flock(f.fileno(), _fcntl.LOCK_UN)
+                else:
                     f.seek(0)
-                    msvcrt.locking(f.fileno(), msvcrt.LK_UNLCK, 1)
-                except OSError:
-                    pass
-        else:
-            import fcntl
-            try:
-                fcntl.flock(f.fileno(), fcntl.LOCK_EX | fcntl.LOCK_NB)
+                    _msvcrt.locking(f.fileno(), _msvcrt.LK_UNLCK, 1)
             except OSError:
-                raise Locked(str(path)) from None
-            try:
-                yield f
-            finally:
-                try:
-                    fcntl.flock(f.fileno(), fcntl.LOCK_UN)
-                except OSError:
-                    pass
+                pass
     finally:
         f.close()
 

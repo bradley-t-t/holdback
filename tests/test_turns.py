@@ -189,9 +189,10 @@ class Verdicts(unittest.TestCase):
         kept = state.load("s6")
         key = next(iter(kept["verdicts"]))
         kept["verdicts"] = {}
-        kept["pending"] = {key: [time.time(), 1]}        # pid 1 is always alive
+        kept["pending"] = {key: [time.time(), 999999]}
         state.save("s6", kept)
-        with mock.patch.object(state, "WAIT", 0.5), mock.patch.object(judges, "judge", judge):
+        with mock.patch.object(state, "WAIT", 0.5), mock.patch.object(judges, "judge", judge), \
+                mock.patch.object(state.system, "alive", return_value=True):
             v = turn.decided(path, "s6")
         self.assertEqual(len(judge.calls), 1)            # it waited, then fell back to the scan
         self.assertEqual(v.by, "scan")
